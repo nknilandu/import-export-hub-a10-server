@@ -48,6 +48,33 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    // search product
+    app.get("/search", async (req, res) => {
+      const searchText = req.query.search;
+      const result = await appCollection
+        .find({ productName: { $regex: searchText, $options: "i" } })
+        .toArray();
+      res.send(result);
+    });
+    //find single product
+    app.get("/product-details/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await appCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+    //find product via email
+    app.get("/my-products", async (req, res) => {
+      const email = req.query.email;
+      const result = await appCollection.find({ userEmail: email }).toArray();
+      res.send(result);
+    });
+    // delete product
+    app.delete("/my-products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
