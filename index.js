@@ -30,7 +30,8 @@ const verifyFirebaseToken = async (req, res, next) => {
 
   // verify token
   try {
-    await admin.auth().verifyIdToken(token);
+    const verify = await admin.auth().verifyIdToken(token);
+    req.tokenMail = verify.email;
     next();
   } catch {
     return res.status(401).send({ message: "Invalid token format" });
@@ -61,7 +62,7 @@ async function run() {
     const importCollection = appDB.collection("imports");
 
     // post a product
-    app.post("/add-product", async (req, res) => {
+    app.post("/add-product", verifyFirebaseToken, async (req, res) => {
       const newProduct = req.body;
       const result = await appCollection.insertOne(newProduct);
       res.send(result);
@@ -88,44 +89,94 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
     //find single product
-    app.get("/product-details/:id", async (req, res) => {
+    app.get("/product-details/:id",  verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const result = await appCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
+
     //find product via email
-    app.get("/my-products", async (req, res) => {
+    app.get("/my-products", verifyFirebaseToken, async (req, res) => {
+      // check 403
+      if (req.tokenMail !== req.query.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const email = req.query.email;
       const result = await appCollection.find({ userEmail: email }).toArray();
       res.send(result);
     });
+    
     // delete product
-    app.delete("/my-products/:id", async (req, res) => {
+    app.delete("/my-products/:id", verifyFirebaseToken, async (req, res) => {
+      // check 403
+      if (req.tokenMail !== req.headers.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await appCollection.deleteOne(query);
       res.send(result);
     });
+
+        // update product
+    app.patch("/update-product/:id", verifyFirebaseToken, async (req, res) => {
+
+      // check 403
+      if (req.tokenMail !== req.headers.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateData = req.body;
+      const update = {
+        $set: updateData,
+      };
+      const result = await appCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+
+
     // import product
-    app.post("/import-product", async (req, res) => {
+    app.post("/import-product", verifyFirebaseToken, async (req, res) => {
+      // check 403
+      if (req.tokenMail !== req.headers.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const newProduct = req.body;
       console.log(newProduct);
       const result = await importCollection.insertOne(newProduct);
-      res.send(result);
+      // res.send(result);
 
-      // const query = {_id : new ObjectId(newProduct.productId)}
-      // console.log(query)
-      // const decQuantity = {
-      //   $inc : {
-      //     quantity : -1
-      //   }
-      // }
-      // const updateQuantity = await appCollection.updateOne(query, decQuantity)
-      // res.send({result, updateQuantity});
+      const query = {_id : new ObjectId(newProduct.productId)}
+      console.log(query)
+      const decQuantity = {
+        $inc : {
+          quantity : -newProduct.takeQuantity
+        }
+      }
+      const updateQuantity = await appCollection.updateOne(query, decQuantity)
+      res.send({result, updateQuantity});
+
     });
+
+
+    
     // get import product
     app.get("/import-product", verifyFirebaseToken, async (req, res) => {
+      // check 403
+      if (req.tokenMail !== req.query.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+
       const email = req.query.email;
       const result = await importCollection
         .find({ customerEmail: email })
