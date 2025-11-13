@@ -3,9 +3,41 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3031;
 
+// firebase admin sdk
+const admin = require("firebase-admin");
+const serviceAccount = require("./import-export-hub-nk-firebase-adminsdk.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 app.use(cors());
 app.use(express.json());
 
+// middleware
+const verifyFirebaseToken = async (req, res, next) => {
+  const header = req.headers.authorization;
+
+  if (!header) {
+    // unauthorized access
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+
+  // format: "Bearer <token>"
+  const token = header.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "Invalid token format" });
+  }
+
+  // verify token
+  try {
+    await admin.auth().verifyIdToken(token);
+    next();
+  } catch {
+    return res.status(401).send({ message: "Invalid token format" });
+  }
+};
+
+//mongo DB client
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri =
   "mongodb+srv://importExportHubAdmin:wGQYgWvG5JPC7L1I@cluster.sofxk3k.mongodb.net/?appName=Cluster";
@@ -93,7 +125,7 @@ async function run() {
       // res.send({result, updateQuantity});
     });
     // get import product
-    app.get("/import-product", async (req, res) => {
+    app.get("/import-product", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
       const result = await importCollection
         .find({ customerEmail: email })
