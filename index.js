@@ -3,9 +3,14 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3031;
 
+require("dotenv").config()
 // firebase admin sdk
 const admin = require("firebase-admin");
-const serviceAccount = require("./import-export-hub-nk-firebase-adminsdk.json");
+//DECODE
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
+
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -38,10 +43,10 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
+require("dotenv").config();
 //mongo DB client
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const uri =
-  "mongodb+srv://importExportHubAdmin:wGQYgWvG5JPC7L1I@cluster.sofxk3k.mongodb.net/?appName=Cluster";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster.sofxk3k.mongodb.net/?appName=Cluster`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -55,7 +60,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const appDB = client.db("ImportExportHub");
     const appCollection = appDB.collection("products");
@@ -91,7 +96,7 @@ async function run() {
     });
 
     //find single product
-    app.get("/product-details/:id",  verifyFirebaseToken, async (req, res) => {
+    app.get("/product-details/:id", verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const result = await appCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
@@ -108,7 +113,7 @@ async function run() {
       const result = await appCollection.find({ userEmail: email }).toArray();
       res.send(result);
     });
-    
+
     // delete product
     app.delete("/my-products/:id", verifyFirebaseToken, async (req, res) => {
       // check 403
@@ -122,9 +127,8 @@ async function run() {
       res.send(result);
     });
 
-        // update product
+    // update product
     app.patch("/update-product/:id", verifyFirebaseToken, async (req, res) => {
-
       // check 403
       if (req.tokenMail !== req.headers.email) {
         // forbidden access
@@ -141,8 +145,6 @@ async function run() {
       res.send(result);
     });
 
-
-
     // import product
     app.post("/import-product", verifyFirebaseToken, async (req, res) => {
       // check 403
@@ -155,20 +157,17 @@ async function run() {
       const result = await importCollection.insertOne(newProduct);
       // res.send(result);
 
-      const query = {_id : new ObjectId(newProduct.productId)}
-      console.log(query)
+      const query = { _id: new ObjectId(newProduct.productId) };
+      console.log(query);
       const decQuantity = {
-        $inc : {
-          quantity : -newProduct.takeQuantity
-        }
-      }
-      const updateQuantity = await appCollection.updateOne(query, decQuantity)
-      res.send({result, updateQuantity});
-
+        $inc: {
+          quantity: -newProduct.takeQuantity,
+        },
+      };
+      const updateQuantity = await appCollection.updateOne(query, decQuantity);
+      res.send({ result, updateQuantity });
     });
 
-
-    
     // get import product
     app.get("/import-product", verifyFirebaseToken, async (req, res) => {
       // check 403
@@ -186,9 +185,9 @@ async function run() {
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -196,9 +195,9 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.get("/", (req, res) => {
-  res.send("Welcome to Import Export Hub");
-});
+// app.get("/", (req, res) => {
+//   res.send("Welcome to Import Export Hub");
+// });
 
 app.listen(port, () => {
   console.log(`This app listening on port ${port}`);
