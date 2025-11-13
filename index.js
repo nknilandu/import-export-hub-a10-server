@@ -75,6 +75,26 @@ async function run() {
       const result = await appCollection.deleteOne(query);
       res.send(result);
     });
+        // import product
+    app.post("/import-product", async (req, res) => {
+      const newProduct = req.body;
+        console.log(newProduct)
+      const result = await importCollection.insertOne(newProduct);
+      res.send(result)
+
+
+      // const query = {_id : new ObjectId(newProduct.productId)}
+      // console.log(query)
+      // const decQuantity = {
+      //   $inc : { 
+      //     quantity : -1
+      //   }
+      // }
+      // const updateQuantity = await appCollection.updateOne(query, decQuantity)
+      // res.send({result, updateQuantity});
+
+
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
