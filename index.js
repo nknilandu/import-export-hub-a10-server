@@ -3,13 +3,14 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3031;
 
-require("dotenv").config()
+require("dotenv").config();
 // firebase admin sdk
 const admin = require("firebase-admin");
 //DECODE
-const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString("utf8");
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf8"
+);
 const serviceAccount = JSON.parse(decoded);
-
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -158,7 +159,7 @@ async function run() {
       // res.send(result);
 
       const query = { _id: new ObjectId(newProduct.productId) };
-      console.log(query);
+      // console.log(query);
       const decQuantity = {
         $inc: {
           quantity: -newProduct.takeQuantity,
@@ -183,8 +184,26 @@ async function run() {
       res.send(result);
     });
 
+    // delete import product
+    app.delete("/import-product/:id", verifyFirebaseToken, async (req, res) => {
+      // check 403
+      if (req.tokenMail !== req.headers.email) {
+        // forbidden access
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await importCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.get("/", (req, res) => {
+      res.send("Successfully connected to Import Export Hub server");
+    });
+
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     // console.log(
     //   "Pinged your deployment. You successfully connected to MongoDB!"
     // );
